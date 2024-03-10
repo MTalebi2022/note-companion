@@ -1,0 +1,92 @@
+.flashcards-container {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
+  background-color: var(--bg-color);
+  overflow: auto; 
+}
+
+.flashcards-count {
+  margin-bottom: 15px;
+}
+.card:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* Add shadow on hover */
+}
+.flashcards-container.dark-mode {
+  --bg-color: #343a40; /* Dark mode background color */
+  --text-color: #ffffff; /* Dark mode text color */
+}
+
+.flashcards-container.light-mode {
+  --bg-color: #f8f9fa; /* Light mode background color */
+  --text-color: #000000; /* Light mode text color */
+}
+
+.flashcard {
+  width: 200px;
+  height: 280px;
+  margin: 10px;
+  perspective: 1000px;
+}
+
+.card {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.6s, box-shadow 0.3s; /* Add box-shadow transition */
+  overflow: auto;
+}
+
+.card.flipped {
+  transform: rotateY(180deg);
+}
+
+.card-face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 10px; /* Add border radius for a modern look */
+  overflow: auto; 
+}
+
+.card-face.front {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  background: var(--bg-color);
+  color: var(--text-color); /* Add text color for front face */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: auto; /* Enables scrolling */
+  padding: 10px; /* Adjust padding as needed */
+}
+
+.card-face.back {
+  background: var(--bg-color);
+  color: var(--text-color); /* Add text color for back face */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: auto; /* Enables scrolling */
+  padding: 10px; /* Adjust padding as needed */
+}
+
+.flip-icon,
+.delete-icon {
+    position: absolute;
+    top: 10px; /* Adjust the positioning for better visibility */
+    right: 10px; /* Adjust the positioning for better visibility */
+    cursor: pointer;
+    color: var(--text-color); /* Ensure icon color matches text color */
+}
+.card.flipped .card-face.back {
+  transform: rotateY(180deg);
+}
