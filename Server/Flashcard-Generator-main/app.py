@@ -1,24 +1,77 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-import main
+import torch
+import nltk
+from nltk.tokenize import sent_tokenize
+from transformers import AutoTokenizer, pipeline
+from sentence_transformers import SentenceTransformer
+from transformers import AutoTokenizer, AutoModelForQuestionAnswering
 
-app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
 
-@app.route('/generate_flashcards', methods=['POST'])
-def generate_flashcards():
-    # Get the text input and number of flashcards from the request
-    text = request.json['text']
-    num_flashcards = request.json['num_flashcards_limit']
+# Download necessary NLTK resources
+nltk.download('punkt')
+nltk.download('wordnet')
+nltk.download('stopwords')
 
-    # Call your machine learning model to generate the flashcards
-    flashcards = main.generate_flashcards(text, num_flashcards)
+# Load BART model and tokenizer
+tokenizer = AutoTokenizer.from_pretrained("valhalla/bart-large-finetuned-squadv1")
+model = AutoModelForQuestionAnswering.from_pretrained("valhalla/bart-large-finetuned-squadv1")
 
-    # Return the flashcards as a JSON response
-    response = {
-        'flashcards': flashcards
-    }
-    return jsonify(response)
+pipe = pipeline("text2text-generation", 'lmqg/t5-large-squad-qg')
 
-if __name__ == '__main__':
-    app.run(debug=True)  # Added debug=True for development purposes
+# Load Sentence-BERT model
+sentence_bert_model = SentenceTransformer('average_word_embeddings_glove.6B.300d')
+
+# Define the event handler for the button click
+def generate_flashcards(text, num_flashcards):      
+    # Tokenize the text into sentences
+    sentences = sent_tokenize(text)
+
+    # Generate questions
+    questions = []
+    for sentence in sentences:
+        input_text = 'generate question: ' + sentence
+        question = pipe(input_text)
+        question = question[0]['generated_text']
+        questions.append(question)
+
+    # Rank questions based on quality/relevance
+    question_embeddings = sentence_bert_model.encode(questions)
+    ranking_scores = question_embeddings.dot(question_embeddings.T).mean(axis=1)  # Compute cosine similarity scores
+
+    # Filter and select the most significant questions
+    selected_indices = ranking_scores.argsort()[-num_flashcards:][::-1]
+    selected_questions = [questions[i] for i in selected_indices]
+
+    answers = []
+    for question in selected_questions:
+        inputs = tokenizer.encode_plus(question, text, add_special_tokens=True, return_tensors="pt")
+        input_ids = inputs["input_ids"].tolist()[0]
+
+        text_tokens = tokenizer.convert_ids_to_tokens(input_ids)
+        
+        outputs = model(**inputs)
+        answer_start_scores=outputs.start_logits
+        answer_end_scores=outputs.end_logits
+
+        answer_start = torch.argmax(
+            answer_start_scores
+        )  # Get the most likely beginning of answer with the argmax of the score
+        answer_end = torch.argmax(answer_end_scores) + 1  # Get the most likely end of answer with the argmax of the score
+
+        answer = tokenizer.convert_tokens_to_string(tokenizer.convert_ids_to_tokens(input_ids[answer_start:answer_end]))
+
+        # Combine the tokens in the answer and print it out.""
+        answer = answer.replace("#","")
+
+        answers.append(answer)
+
+    
+    flashcards = []
+    for i in range(len(selected_questions)):
+      flashcard = {
+          'question': selected_questions[i],
+          'answer': answers[i]
+      }
+      flashcards.append(flashcard)
+
+    return flashcards
+
